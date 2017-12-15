@@ -21,13 +21,15 @@ import qualified Statistics.Quantile as S
 
 -- | Returns a vector of cluster labels by finding the eigenvector with the
 -- largest eigenvalue of the random walk normalized Laplacian P. Computes real
--- symmetric part of P, so ensure the input is real and symmetric.
+-- symmetric part of P, so ensure the input is real and symmetric. Diagonal
+-- should be 0s for adjacency matrix.
 spectralClusterNorm :: H.Matrix Double -> H.Vector Double
 spectralClusterNorm = H.cmap (bool 0 1 . (>= 0)) . spectralNorm
 
 -- | Returns a vector of cluster labels by finding the eigenvector with the
 -- largest eigenvalue of the random walk normalized Laplacian P. Computes real
--- symmetric part of P, so ensure the input is real and symmetric.
+-- symmetric part of P, so ensure the input is real and symmetric. Diagonal
+-- should be 0s for adjacency matrix.
 spectralClusterP :: H.Matrix Double -> H.Vector Double
 spectralClusterP mat = H.cmap (bool 0 1 . (> m)) eigVec
   where
@@ -36,7 +38,7 @@ spectralClusterP mat = H.cmap (bool 0 1 . (> m)) eigVec
 
 -- | Returns the eigenvector with the largest eigenvalue of the random walk
 -- normalized Laplacian P. Computes real symmetric part of P, so ensure the
--- input is real and symmetric.
+-- input is real and symmetric. Diagonal should be 0s for adjacency matrix.
 spectralP :: H.Matrix Double -> H.Vector Double
 spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
   where
@@ -45,7 +47,8 @@ spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
 
 -- | Returns the eigenvector with the second smallest eigenvalue of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
--- ensure the input is real and symmetric.
+-- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
+-- matrix.
 spectralNorm :: H.Matrix Double -> H.Vector Double
 spectralNorm mat = head . drop 1 . reverse . H.toColumns . snd . H.eigSH $ lNorm
   where
