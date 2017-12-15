@@ -1,4 +1,4 @@
-{- SpectralClustering
+{- Math.SpectralClustering
 Gregory W. Schwartz
 
 Collects the functions pertaining to spectral clustering.
