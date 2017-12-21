@@ -50,7 +50,11 @@ spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix.
 spectralNorm :: H.Matrix Double -> H.Vector Double
-spectralNorm mat = head . drop 1 . reverse . H.toColumns . snd . H.eigSH $ lNorm
+spectralNorm mat = H.flatten
+                 . flip (H.??) (H.All, H.PosCyc (H.idxs [-2]))
+                 . snd
+                 . H.eigSH
+                 $ lNorm
   where
     lNorm = H.sym $ i - mconcat [invD, mat, invD]
     invD  = H.inv . H.sqrtm $ d
