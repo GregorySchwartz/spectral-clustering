@@ -19,18 +19,21 @@ import qualified Statistics.Quantile as S
 
 -- Local
 
+type LabelVector     = H.Vector Double
+type AdjacencyMatrix = H.Matrix Double
+
 -- | Returns a vector of cluster labels by finding the eigenvector with the
 -- largest eigenvalue of the random walk normalized Laplacian P. Computes real
 -- symmetric part of P, so ensure the input is real and symmetric. Diagonal
 -- should be 0s for adjacency matrix.
-spectralClusterNorm :: H.Matrix Double -> H.Vector Double
+spectralClusterNorm :: AdjacencyMatrix -> LabelVector
 spectralClusterNorm = H.cmap (bool 0 1 . (>= 0)) . spectralNorm
 
 -- | Returns a vector of cluster labels by finding the eigenvector with the
 -- largest eigenvalue of the random walk normalized Laplacian P. Computes real
 -- symmetric part of P, so ensure the input is real and symmetric. Diagonal
 -- should be 0s for adjacency matrix.
-spectralClusterP :: H.Matrix Double -> H.Vector Double
+spectralClusterP :: AdjacencyMatrix -> LabelVector
 spectralClusterP mat = H.cmap (bool 0 1 . (> m)) eigVec
   where
     m = S.continuousBy S.s 2 4 eigVec
@@ -39,7 +42,7 @@ spectralClusterP mat = H.cmap (bool 0 1 . (> m)) eigVec
 -- | Returns the eigenvector with the largest eigenvalue of the random walk
 -- normalized Laplacian P. Computes real symmetric part of P, so ensure the
 -- input is real and symmetric. Diagonal should be 0s for adjacency matrix.
-spectralP :: H.Matrix Double -> H.Vector Double
+spectralP :: AdjacencyMatrix -> H.Vector Double
 spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
   where
     rwLap = H.sym $ H.inv d H.<> mat
@@ -49,7 +52,7 @@ spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix.
-spectralNorm :: H.Matrix Double -> H.Vector Double
+spectralNorm :: AdjacencyMatrix -> H.Vector Double
 spectralNorm mat = H.flatten
                  . flip (H.??) (H.All, H.PosCyc (H.idxs [-2]))
                  . snd
@@ -62,5 +65,5 @@ spectralNorm mat = H.flatten
     i     = H.ident . H.rows $ mat
 
 -- | Obtain the degree matrix.
-getDegreeMatrix :: H.Matrix Double -> H.Matrix Double
+getDegreeMatrix :: AdjacencyMatrix -> H.Matrix Double
 getDegreeMatrix = H.diag . H.vector . fmap H.sumElements . H.toRows
