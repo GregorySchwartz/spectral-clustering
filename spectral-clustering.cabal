@@ -20,7 +20,6 @@ library
   build-depends:       base >= 4.7 && < 5
                      , hmatrix
                      , hmatrix-svdlibc
-                     , lens
                      , sparse-linear-algebra
                      , statistics
   ghc-options:         -O2
