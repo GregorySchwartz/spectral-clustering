@@ -27,7 +27,7 @@ type AdjacencyMatrix = H.Matrix Double
 -- symmetric part of P, so ensure the input is real and symmetric. Diagonal
 -- should be 0s for adjacency matrix.
 spectralClusterNorm :: AdjacencyMatrix -> LabelVector
-spectralClusterNorm = H.cmap (bool 0 1 . (>= 0)) . spectralNorm
+spectralClusterNorm = H.step . spectralNorm
 
 -- | Returns a vector of cluster labels by finding the eigenvector with the
 -- largest eigenvalue of the random walk normalized Laplacian P. Computes real
