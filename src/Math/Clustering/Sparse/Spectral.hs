@@ -13,17 +13,18 @@ module Math.Clustering.Sparse.Spectral
 
 -- Remote
 import Data.Bool (bool)
+import qualified Control.Lens as L
+import qualified Data.Sparse.Common as S
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as H
-import qualified Data.Sparse.Common as S
 
 -- Local
 
 type LabelVector = S.SpVector Double
+type B           = S.SpMatrix Double
 newtype B1 = B1 { unB1 :: S.SpMatrix Double }
 newtype B2 = B2 { unB2 :: S.SpMatrix Double }
-newtype B  = B { unB :: S.SpMatrix Double }
 newtype D  = D { unD :: S.SpMatrix Double }
 newtype C  = C { unC :: S.SpMatrix Double }
 
@@ -46,8 +47,7 @@ b1ToB2 (B1 b1) =
 -- | Euclidean norm each row.
 b2ToB :: B2 -> B
 b2ToB (B2 b2) =
-    B
-        . S.fromListSM (n, m)
+    S.fromListSM (n, m)
         . fmap (\(!i, !j, !x) -> (i, j, (1 / (S.lookupDenseSV i eVec)) * x))
         . S.toListSM
         $ b2
@@ -63,17 +63,17 @@ norm2 = sqrt . sum . fmap (** 2)
 
 -- | Get the diagonal transformed B matrix.
 bToD :: B -> D
-bToD (B b) = D
-           . S.diagonalSM
-           . flip S.extractCol 0
-           $ b
-       S.#~# ((S.transposeSM b) S.#~# (S.fromColsL [S.fromListDenseSV n [1,1..]]))
+bToD b = D
+       . S.diagonalSM
+       . flip S.extractCol 0
+       $ b
+   S.#~# ((S.transposeSM b) S.#~# (S.fromColsL [S.fromListDenseSV n [1,1..]]))
   where
     n = S.nrows b
 
 -- | Get the matrix C as input for SVD.
 bdToC :: B -> D -> C
-bdToC (B b) (D d) = C $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
+bdToC b (D d) = C $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
 
 -- | Obtain the second left singular vector of a sparse matrix.
 secondLeft :: S.SpMatrix Double -> S.SpVector Double
@@ -89,10 +89,11 @@ secondLeft m = S.fromListDenseSV (S.nrows m)
              $ m
 
 -- | Returns the second left singular vector of a sparse spectral process.
--- Assumes the columns are features and rows are observations. See Shu et al.,
--- "Efficient Spectral Neighborhood Blocking for Entity Resolution", 2011.
-spectral :: S.SpMatrix Double -> S.SpVector Double
-spectral b1 = secondLeft . unC $ c
+-- Assumes the columns are features and rows are observations. Also returns the
+-- normalized matrix B. See Shu et al., "Efficient Spectral Neighborhood
+-- Blocking for Entity Resolution", 2011.
+spectral :: S.SpMatrix Double -> (S.SpVector Double, B)
+spectral !b1 = (secondLeft . unC $ c, b)
   where
     b = b2ToB . b1ToB2 . B1 $ b1
     d = bToD b
@@ -100,7 +101,8 @@ spectral b1 = secondLeft . unC $ c
 
 -- | Returns a vector of cluster labels for two groups by finding the second
 -- left singular vector of a special normalized matrix. Assumes the columns are
--- features and rows are observations. See Shu et al., "Efficient Spectral
--- Neighborhood Blocking for Entity Resolution", 2011.
-spectralCluster :: S.SpMatrix Double -> LabelVector
-spectralCluster = fmap (bool 0 1 . (>= 0)) . spectral
+-- features and rows are observations. Also returns the normalized matrix B.
+-- See Shu et al., "Efficient Spectral Neighborhood Blocking for Entity
+-- Resolution", 2011.
+spectralCluster :: S.SpMatrix Double -> (LabelVector, B)
+spectralCluster = L.over L._1 (fmap (bool 0 1 . (>= 0))) . spectral
