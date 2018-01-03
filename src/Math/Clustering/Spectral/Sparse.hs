@@ -1,4 +1,4 @@
-{- Math.Clustering.Sparse.Spectral
+{- Math.Clustering.Spectral.Sparse
 Gregory W. Schwartz
 
 Collects the functions pertaining to sparse spectral clustering.
@@ -6,10 +6,11 @@ Collects the functions pertaining to sparse spectral clustering.
 
 {-# LANGUAGE BangPatterns #-}
 
-module Math.Clustering.Sparse.Spectral
-    ( spectral
+module Math.Clustering.Spectral.Sparse
+    ( B (..)
+    , spectral
     , spectralCluster
-    , B (..)
+    , getB
     ) where
 
 -- Remote

@@ -1,10 +1,10 @@
-{- Math.Clustering.Spectral
+{- Math.Clustering.Spectral.Dense
 Gregory W. Schwartz
 
 Collects the functions pertaining to spectral clustering.
 -}
 
-module Math.Clustering.Spectral
+module Math.Clustering.Spectral.Dense
     ( spectralClusterNorm
     , spectralNorm
     , spectralClusterP
