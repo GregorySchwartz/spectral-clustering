@@ -27,7 +27,7 @@ newtype B1 = B1 { unB1 :: S.SpMatrix Double }
 newtype B2 = B2 { unB2 :: S.SpMatrix Double }
 newtype D  = D { unD :: S.SpMatrix Double }
 newtype C  = C { unC :: S.SpMatrix Double }
-newtype B  = B { unB :: S.SpMatrix Double }
+newtype B  = B { unB :: S.SpMatrix Double } deriving (Show)
 
 -- | Normalize the input matrix by column. Here, columns are features.
 b1ToB2 :: B1 -> B2
