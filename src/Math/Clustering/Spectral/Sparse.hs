@@ -18,25 +18,27 @@ import Data.Bool (bool)
 import qualified Data.Sparse.Common as S
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
-import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as H
+import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
+import Debug.Trace
 
 -- Local
 
 type LabelVector = S.SpVector Double
-newtype B1 = B1 { unB1 :: S.SpMatrix Double }
-newtype B2 = B2 { unB2 :: S.SpMatrix Double }
-newtype D  = D { unD :: S.SpMatrix Double }
-newtype C  = C { unC :: S.SpMatrix Double }
+newtype B1 = B1 { unB1 :: S.SpMatrix Double } deriving (Show)
+newtype B2 = B2 { unB2 :: S.SpMatrix Double } deriving (Show)
+newtype D  = D { unD :: S.SpMatrix Double } deriving (Show)
+newtype C  = C { unC :: S.SpMatrix Double } deriving (Show)
 newtype B  = B { unB :: S.SpMatrix Double } deriving (Show)
 
 -- | Normalize the input matrix by column. Here, columns are features.
 b1ToB2 :: B1 -> B2
 b1ToB2 (B1 b1) =
     B2
+        . S.sparsifySM
         . S.fromListSM (n, m)
         . fmap (\ (!i, !j, !x)
-                -> (i, j, log (fromIntegral n / (S.lookupDenseSV j dVec) * x))
-                )
+               -> (i, j, log (fromIntegral n / (S.lookupDenseSV j dVec)) * x)
+               )
         . S.toListSM
         $ b1
   where
@@ -49,6 +51,7 @@ b1ToB2 (B1 b1) =
 b2ToB :: B2 -> B
 b2ToB (B2 b2) =
     B
+        . S.sparsifySM
         . S.fromListSM (n, m)
         . fmap (\(!i, !j, !x) -> (i, j, (1 / (S.lookupDenseSV i eVec)) * x))
         . S.toListSM
@@ -66,6 +69,7 @@ norm2 = sqrt . sum . fmap (** 2)
 -- | Get the diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
+           . S.sparsifySM
            . S.diagonalSM
            . flip S.extractCol 0
            $ b
@@ -75,16 +79,17 @@ bToD (B b) = D
 
 -- | Get the matrix C as input for SVD.
 bdToC :: B -> D -> C
-bdToC (B b) (D d) = C $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
+bdToC (B b) (D d) = C . S.sparsifySM $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
 
 -- | Obtain the second left singular vector of a sparse matrix.
 secondLeft :: S.SpMatrix Double -> S.SpVector Double
-secondLeft m = S.fromListDenseSV (S.nrows m)
+secondLeft m = S.sparsifySV
+             . S.fromListDenseSV (S.nrows m)
              . H.toList
-             . last
-             . H.toColumns
+             . (!! 1)
+             . H.toRows
              . (\(!x, _, _) -> x)
-             . H.sparseSvd 2
+             . SVD.sparseSvd 2
              . H.mkCSR
              . fmap (\(!i, !j, !x) -> ((i, j), x))
              . S.toListSM
@@ -111,4 +116,4 @@ spectral b = secondLeft . unC $ c
 -- See Shu et al., "Efficient Spectral Neighborhood Blocking for Entity
 -- Resolution", 2011.
 spectralCluster :: B -> LabelVector
-spectralCluster = fmap (bool 0 1 . (>= 0)) . spectral
+spectralCluster = S.sparsifySV . fmap (bool 0 1 . (>= 0)) . spectral
