@@ -19,7 +19,6 @@ import qualified Data.Sparse.Common as S
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
-import Debug.Trace
 
 -- Local
 
@@ -37,13 +36,16 @@ b1ToB2 (B1 b1) =
         . S.sparsifySM
         . S.fromListSM (n, m)
         . fmap (\ (!i, !j, !x)
-               -> (i, j, log (fromIntegral n / (S.lookupDenseSV j dVec)) * x)
+               -> (i, j, (log (fromIntegral n / (S.lookupDenseSV j dVec))) * x)
                )
         . S.toListSM
         $ b1
   where
     dVec :: S.SpVector Double
-    dVec = S.vr . fmap (sum . S.extractCol b1) $ [0 .. (m - 1)]
+    dVec = S.vr
+         . fmap (sum . fmap (\x -> if x > 0 then 1 else 0))
+         . S.toColsL
+         $ b1
     n = S.nrows b1
     m = S.ncols b1
 
@@ -53,12 +55,12 @@ b2ToB (B2 b2) =
     B
         . S.sparsifySM
         . S.fromListSM (n, m)
-        . fmap (\(!i, !j, !x) -> (i, j, (1 / (S.lookupDenseSV i eVec)) * x))
+        . fmap (\(!i, !j, !x) -> (i, j, x / (S.lookupDenseSV i eVec)))
         . S.toListSM
         $ b2
   where
     eVec :: S.SpVector Double
-    eVec = S.vr . fmap (norm2 . S.extractRow b2) $ [0 .. (n - 1)]
+    eVec = S.vr . fmap norm2 . S.toRowsL $ b2
     n = S.nrows b2
     m = S.ncols b2
 
