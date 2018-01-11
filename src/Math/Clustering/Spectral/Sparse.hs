@@ -44,7 +44,8 @@ b1ToB2 (B1 b1) =
     dVec :: S.SpVector Double
     dVec = S.vr
          . fmap (sum . fmap (\x -> if x > 0 then 1 else 0))
-         . S.toColsL
+         . S.toRowsL -- faster than toColsL.
+         . S.transposeSM
          $ b1
     n = S.nrows b1
     m = S.ncols b1
