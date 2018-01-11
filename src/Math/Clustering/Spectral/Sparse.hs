@@ -33,7 +33,6 @@ newtype B  = B { unB :: S.SpMatrix Double } deriving (Show)
 b1ToB2 :: B1 -> B2
 b1ToB2 (B1 b1) =
     B2
-        . S.sparsifySM
         . S.fromListSM (n, m)
         . fmap (\ (!i, !j, !x)
                -> (i, j, (log (fromIntegral n / (S.lookupDenseSV j dVec))) * x)
@@ -54,7 +53,6 @@ b1ToB2 (B1 b1) =
 b2ToB :: B2 -> B
 b2ToB (B2 b2) =
     B
-        . S.sparsifySM
         . S.fromListSM (n, m)
         . fmap (\(!i, !j, !x) -> (i, j, x / (S.lookupDenseSV i eVec)))
         . S.toListSM
@@ -72,7 +70,6 @@ norm2 = sqrt . sum . fmap (** 2)
 -- | Get the diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
-           . S.sparsifySM
            . S.diagonalSM
            . flip S.extractCol 0
            $ b
@@ -82,7 +79,7 @@ bToD (B b) = D
 
 -- | Get the matrix C as input for SVD.
 bdToC :: B -> D -> C
-bdToC (B b) (D d) = C . S.sparsifySM $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
+bdToC (B b) (D d) = C $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
 
 -- | Obtain the second left singular vector of a sparse matrix.
 secondLeft :: S.SpMatrix Double -> S.SpVector Double
