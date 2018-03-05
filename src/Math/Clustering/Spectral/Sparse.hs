@@ -96,9 +96,10 @@ secondLeft m = S.sparsifySV
              $ m
 
 -- | Get the normalized matrix B from an input matrix where the features are
--- columns and rows are observations.
-getB :: S.SpMatrix Double -> B
-getB = b2ToB . b1ToB2 . B1
+-- columns and rows are observations. Optionally, do not normalize.
+getB :: Bool -> S.SpMatrix Double -> B
+getB True = b2ToB . b1ToB2 . B1
+getB False = b2ToB . B2
 
 -- | Returns the second left singular vector of a sparse spectral process.
 -- Assumes the columns are features and rows are observations. B is the
