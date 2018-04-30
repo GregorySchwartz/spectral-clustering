@@ -59,7 +59,7 @@ b2ToB (B2 b2) =
         $ b2
   where
     eVec :: S.SpVector Double
-    eVec = S.vr . fmap norm2 . S.toRowsL $ b2
+    eVec = S.vr . fmap S.norm2 . S.toRowsL $ b2
     n = S.nrows b2
     m = S.ncols b2
 
@@ -118,3 +118,9 @@ spectral b = secondLeft . unC $ c
 -- Resolution", 2011.
 spectralCluster :: B -> LabelVector
 spectralCluster = S.sparsifySV . fmap (bool 0 1 . (>= 0)) . spectral
+
+-- | Get the cosine similarity between two rows using B2.
+getSimilarity :: B2 -> Int -> Int -> Double
+getSimilarity (B2 b2) i j =
+    S.dot (S.extractRow b2 i) (S.extractRow b2 j)
+        / (S.norm2 (S.extractRow b2 i) * S.norm2 (S.extractRow b2 j))
