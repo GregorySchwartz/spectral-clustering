@@ -8,9 +8,11 @@ Collects the functions pertaining to sparse spectral clustering.
 
 module Math.Clustering.Spectral.Sparse
     ( B (..)
+    , B2 (..)
     , spectral
     , spectralCluster
     , getB
+    , getSimilarityFromB2
     ) where
 
 -- Remote
@@ -120,7 +122,7 @@ spectralCluster :: B -> LabelVector
 spectralCluster = S.sparsifySV . fmap (bool 0 1 . (>= 0)) . spectral
 
 -- | Get the cosine similarity between two rows using B2.
-getSimilarity :: B2 -> Int -> Int -> Double
-getSimilarity (B2 b2) i j =
+getSimilarityFromB2 :: B2 -> Int -> Int -> Double
+getSimilarityFromB2 (B2 b2) i j =
     S.dot (S.extractRow b2 i) (S.extractRow b2 j)
         / (S.norm2 (S.extractRow b2 i) * S.norm2 (S.extractRow b2 j))
