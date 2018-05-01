@@ -8,6 +8,7 @@ Collects the functions pertaining to sparse spectral clustering.
 
 module Math.Clustering.Spectral.Sparse
     ( B (..)
+    , B1 (..)
     , B2 (..)
     , spectral
     , spectralCluster
