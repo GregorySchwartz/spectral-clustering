@@ -110,10 +110,7 @@ getB False = b2ToB . B2
 -- normalized matrix (from getB). See Shu et al., "Efficient Spectral
 -- Neighborhood Blocking for Entity Resolution", 2011.
 spectral :: B -> S.SpVector Double
-spectral b = secondLeft . unC $ c
-  where
-    d = bToD b
-    c = bdToC b d
+spectral b = secondLeft . unC . bdToC b . bToD $ b
 
 -- | Returns a vector of cluster labels for two groups by finding the second
 -- left singular vector of a special normalized matrix. Assumes the columns are
