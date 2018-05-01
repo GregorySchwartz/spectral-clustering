@@ -12,6 +12,7 @@ module Math.Clustering.Spectral.Sparse
     , spectral
     , spectralCluster
     , getB
+    , b1ToB2
     , getSimilarityFromB2
     ) where
 
