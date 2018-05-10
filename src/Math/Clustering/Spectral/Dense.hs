@@ -45,8 +45,11 @@ spectralClusterP mat = H.cmap (bool 0 1 . (> m)) eigVec
 spectralP :: AdjacencyMatrix -> H.Vector Double
 spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
   where
-    rwLap = H.sym $ H.inv d H.<> mat
-    d     = getDegreeMatrix mat
+    rwLap = H.sym $ invD H.<> mat
+    invD  = H.diag
+          . H.cmap (\x -> if x == 0 then x else (1 / x))
+          . getDegreeVector
+          $ mat
 
 -- | Returns the eigenvector with the second smallest eigenvalue of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
@@ -60,10 +63,16 @@ spectralNorm mat = H.flatten
                  $ lNorm
   where
     lNorm = H.sym $ i - mconcat [invD, mat, invD]
-    invD  = H.inv . H.sqrtm $ d
-    d     = getDegreeMatrix mat
+    invD  = H.diag
+          . H.cmap (\x -> if x == 0 then x else sqrt (1 / x))
+          . getDegreeVector
+          $ mat
     i     = H.ident . H.rows $ mat
 
 -- | Obtain the degree matrix.
 getDegreeMatrix :: AdjacencyMatrix -> H.Matrix Double
-getDegreeMatrix = H.diag . H.vector . fmap H.sumElements . H.toRows
+getDegreeMatrix = H.diag . getDegreeVector
+
+-- | Obtain the degree vector.
+getDegreeVector :: AdjacencyMatrix -> H.Vector Double
+getDegreeVector = H.vector . fmap H.sumElements . H.toRows
