@@ -12,6 +12,7 @@ module Math.Clustering.Spectral.Sparse
     , B2 (..)
     , spectral
     , spectralCluster
+    , spectralClusterK
     , getB
     , b1ToB2
     , getSimilarityFromB2
@@ -19,6 +20,9 @@ module Math.Clustering.Spectral.Sparse
 
 -- Remote
 import Data.Bool (bool)
+import Data.Function (on)
+import Data.KMeans (kmeansGen)
+import Data.List (sortBy)
 import qualified Data.Sparse.Common as S
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
@@ -119,6 +123,23 @@ spectral b = secondLeft . unC . bdToC b . bToD $ b
 -- Resolution", 2011.
 spectralCluster :: B -> LabelVector
 spectralCluster = S.sparsifySV . fmap (bool 0 1 . (>= 0)) . spectral
+
+-- | Returns a vector of cluster labels for two groups by finding the second
+-- left singular vector of a special normalized matrix and running kmeans.
+-- Assumes the columns are features and rows are observations. B is the
+-- normalized matrix (from getB). See Shu et al., "Efficient Spectral
+-- Neighborhood Blocking for Entity Resolution", 2011.
+spectralClusterK :: Int -> B -> LabelVector
+spectralClusterK k = S.sparsifySV
+                   . S.vr
+                   . fmap snd
+                   . sortBy (compare `on` fst)
+                   . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
+                   . zip [0..] -- To get cluster id.
+                   . kmeansGen ((:[]) . snd) k
+                   . zip [0..] -- To keep track of index.
+                   . S.toDenseListSV
+                   . spectral
 
 -- | Get the cosine similarity between two rows using B2.
 getSimilarityFromB2 :: B2 -> Int -> Int -> Double

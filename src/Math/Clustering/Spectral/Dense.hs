@@ -5,7 +5,8 @@ Collects the functions pertaining to spectral clustering.
 -}
 
 module Math.Clustering.Spectral.Dense
-    ( spectralClusterNorm
+    ( spectralClusterKNorm
+    , spectralClusterNorm
     , spectralNorm
     , spectralClusterP
     , spectralP
@@ -14,6 +15,9 @@ module Math.Clustering.Spectral.Dense
 
 -- Remote
 import Data.Bool (bool)
+import Data.Function (on)
+import Data.KMeans (kmeansGen)
+import Data.List (sortBy)
 import qualified Numeric.LinearAlgebra as H
 import qualified Statistics.Quantile as S
 
@@ -21,6 +25,22 @@ import qualified Statistics.Quantile as S
 
 type LabelVector     = H.Vector Double
 type AdjacencyMatrix = H.Matrix Double
+
+-- | Returns a vector of cluster labels by finding the eigenvector with the
+-- largest eigenvalue of the random walk normalized Laplacian P. Computes real
+-- symmetric part of P, so ensure the input is real and symmetric. Diagonal
+-- should be 0s for adjacency matrix. Clusters the eigenvector using kmeans into
+-- k groups.
+spectralClusterKNorm :: Int -> AdjacencyMatrix -> LabelVector
+spectralClusterKNorm k = H.fromList
+                       . fmap snd
+                       . sortBy (compare `on` fst)
+                       . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
+                       . zip [0..] -- To get cluster id.
+                       . kmeansGen ((:[]) . snd) k
+                       . zip [0..] -- To keep track of index.
+                       . H.toList
+                       . spectralNorm
 
 -- | Returns a vector of cluster labels by finding the eigenvector with the
 -- largest eigenvalue of the random walk normalized Laplacian P. Computes real
