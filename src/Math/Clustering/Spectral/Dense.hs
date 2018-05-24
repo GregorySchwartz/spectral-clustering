@@ -26,11 +26,10 @@ import qualified Statistics.Quantile as S
 type LabelVector     = H.Vector Double
 type AdjacencyMatrix = H.Matrix Double
 
--- | Returns a vector of cluster labels by finding the eigenvector with the
--- largest eigenvalue of the random walk normalized Laplacian P. Computes real
--- symmetric part of P, so ensure the input is real and symmetric. Diagonal
--- should be 0s for adjacency matrix. Clusters the eigenvector using kmeans into
--- k groups.
+-- | Returns the eigenvector with the second smallest eigenvalue of the
+-- symmetric normalized Laplacian L. Computes real symmetric part of L, so
+-- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
+-- matrix. Clusters the eigenvector using kmeans into k groups.
 spectralClusterKNorm :: Int -> AdjacencyMatrix -> LabelVector
 spectralClusterKNorm k = H.fromList
                        . fmap snd
@@ -41,11 +40,10 @@ spectralClusterKNorm k = H.fromList
                        . zip [0..] -- To keep track of index.
                        . H.toList
                        . spectralNorm
-
--- | Returns a vector of cluster labels by finding the eigenvector with the
--- largest eigenvalue of the random walk normalized Laplacian P. Computes real
--- symmetric part of P, so ensure the input is real and symmetric. Diagonal
--- should be 0s for adjacency matrix.
+-- | Returns the eigenvector with the second smallest eigenvalue of the
+-- symmetric normalized Laplacian L. Computes real symmetric part of L, so
+-- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
+-- matrix.
 spectralClusterNorm :: AdjacencyMatrix -> LabelVector
 spectralClusterNorm = H.cmap (bool 0 1 . (>= 0)) . spectralNorm
 
@@ -84,7 +82,7 @@ spectralNorm mat = H.flatten
   where
     lNorm = H.sym $ i - mconcat [invD, mat, invD]
     invD  = H.diag
-          . H.cmap (\x -> if x == 0 then x else sqrt (1 / x))
+          . H.cmap (\x -> if x == 0 then x else (1 / (x ** 2)))
           . getDegreeVector
           $ mat
     i     = H.ident . H.rows $ mat

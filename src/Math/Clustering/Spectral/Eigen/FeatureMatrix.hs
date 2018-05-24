@@ -24,7 +24,6 @@ import Data.Function (on)
 import Data.KMeans (kmeansGen)
 import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
-import Safe (headMay)
 import qualified Data.Eigen.SparseMatrix as S
 import qualified Data.Eigen.SparseMatrix.Utility as S
 import qualified Data.Vector.Storable as VS
@@ -131,8 +130,7 @@ spectralClusterK k = S.fromDenseList
                    . zip [0..] -- To get cluster id.
                    . kmeansGen ((:[]) . snd) k
                    . zip [0..] -- To keep track of index.
-                   . fromMaybe (error "No rows in \"vector\".")
-                   . headMay
+                   . concat
                    . S.toDenseList
                    . spectral
 

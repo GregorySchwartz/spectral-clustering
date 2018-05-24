@@ -25,6 +25,7 @@ library
                      , hmatrix
                      , hmatrix-svdlibc
                      , kmeans
+                     , mwc-random
                      , safe
                      , sparse-linear-algebra
                      , statistics
