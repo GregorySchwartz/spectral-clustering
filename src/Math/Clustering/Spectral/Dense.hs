@@ -8,8 +8,6 @@ module Math.Clustering.Spectral.Dense
     ( spectralClusterKNorm
     , spectralClusterNorm
     , spectralNorm
-    , spectralClusterP
-    , spectralP
     , getDegreeMatrix
     ) where
 
@@ -47,28 +45,6 @@ spectralClusterKNorm k = H.fromList
 spectralClusterNorm :: AdjacencyMatrix -> LabelVector
 spectralClusterNorm = H.cmap (bool 0 1 . (>= 0)) . spectralNorm
 
--- | Returns a vector of cluster labels by finding the eigenvector with the
--- largest eigenvalue of the random walk normalized Laplacian P. Computes real
--- symmetric part of P, so ensure the input is real and symmetric. Diagonal
--- should be 0s for adjacency matrix.
-spectralClusterP :: AdjacencyMatrix -> LabelVector
-spectralClusterP mat = H.cmap (bool 0 1 . (> m)) eigVec
-  where
-    m = S.continuousBy S.s 2 4 eigVec
-    eigVec = spectralP mat
-
--- | Returns the eigenvector with the largest eigenvalue of the random walk
--- normalized Laplacian P. Computes real symmetric part of P, so ensure the
--- input is real and symmetric. Diagonal should be 0s for adjacency matrix.
-spectralP :: AdjacencyMatrix -> H.Vector Double
-spectralP mat = head . H.toColumns . snd . H.eigSH $ rwLap
-  where
-    rwLap = H.sym $ invD H.<> mat
-    invD  = H.diag
-          . H.cmap (\x -> if x == 0 then x else (1 / x))
-          . getDegreeVector
-          $ mat
-
 -- | Returns the eigenvector with the second smallest eigenvalue of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
@@ -82,7 +58,7 @@ spectralNorm mat = H.flatten
   where
     lNorm = H.sym $ i - mconcat [invD, mat, invD]
     invD  = H.diag
-          . H.cmap (\x -> if x == 0 then x else (1 / (x ** 2)))
+          . H.cmap (\x -> if x == 0 then x else x ** (- 1 / 2))
           . getDegreeVector
           $ mat
     i     = H.ident . H.rows $ mat

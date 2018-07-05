@@ -55,7 +55,6 @@ b1ToB2 (B1 b1) =
          . S.uncompress
          $ b1
     n = S.rows b1
-    m = S.cols b1
 
 -- | Euclidean norm each row.
 b2ToB :: B2 -> B
@@ -68,8 +67,6 @@ b2ToB (B2 b2) =
   where
     eVec :: VS.Vector Double
     eVec = VS.fromList . fmap S.norm . S.getRows $ b2
-    n = S.rows b2
-    m = S.cols b2
 
 -- | Get the diagonal transformed B matrix.
 bToD :: B -> D
@@ -84,9 +81,9 @@ bdToC (B b) (D d) = C $ (S._map (\x -> x ** (- 1 / 2)) d) * b
 -- | Obtain the second left singular vector of a sparse matrix.
 secondLeft :: S.SparseMatrixXd -> S.SparseMatrixXd
 secondLeft m = S.fromDenseList
-             . (:[])
+             . fmap (:[])
              . H.toList
-             . (!! 1)
+             . last
              . H.toRows
              . (\(!x, _, _) -> x)
              . SVD.sparseSvd 2
@@ -123,8 +120,7 @@ spectralCluster = S._map (bool 0 1 . (>= 0)) . spectral
 -- Neighborhood Blocking for Entity Resolution", 2011.
 spectralClusterK :: Int -> B -> LabelVector
 spectralClusterK k = S.fromDenseList
-                   . (:[])
-                   . fmap snd
+                   . fmap ((:[]) . snd)
                    . sortBy (compare `on` fst)
                    . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
                    . zip [0..] -- To get cluster id.

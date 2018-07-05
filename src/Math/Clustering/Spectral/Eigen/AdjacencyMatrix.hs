@@ -11,6 +11,7 @@ module Math.Clustering.Spectral.Eigen.AdjacencyMatrix
     , spectralClusterNorm
     , spectralNorm
     , getDegreeMatrix
+    , secondLeft
     ) where
 
 -- Remote
@@ -27,7 +28,6 @@ import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
 import qualified Statistics.Quantile as Stat
-import Debug.Trace
 
 -- Local
 
@@ -57,8 +57,8 @@ spectralNorm :: AdjacencyMatrix -> S.SparseMatrixXd
 spectralNorm mat = secondLeft lNorm
   where
     lNorm    = i + (S.transpose invRootD * (mat * invRootD))
-    invRootD = S.diagCol 0
-             . S._map (\x -> if x == 0 then x else (1 / (x ** 2)))
+    invRootD = S.diagRow 0
+             . S._map (\x -> if x == 0 then x else x ** (- 1 / 2))
              . getDegreeVector
              $ mat
     i        = S.ident . S.rows $ mat
@@ -109,7 +109,7 @@ powerIt a = do
 -- | Executes kmeans to cluster a one dimensional vector.
 kmeansVec :: Int -> S.SparseMatrixXd -> LabelVector
 kmeansVec k = S.fromDenseList
-            . (:[])
+            . fmap (:[])
             . fmap snd
             . sortBy (compare `on` fst)
             . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
@@ -122,7 +122,7 @@ kmeansVec k = S.fromDenseList
 -- | Obtain the second largest value singular vector of a sparse matrix.
 secondLeft :: S.SparseMatrixXd -> S.SparseMatrixXd
 secondLeft m = S.fromDenseList
-             . (:[])
+             . fmap (:[])
              . H.toList
              . last
              . H.toRows
@@ -133,10 +133,24 @@ secondLeft m = S.fromDenseList
              . S.toList
              $ m
 
--- | Obtain the degree matrix.
+-- | Obtain the second largest value singular vector of a sparse matrix.
+denseSecondLeft :: S.SparseMatrixXd -> S.SparseMatrixXd
+denseSecondLeft m = S.fromDenseList
+                  . fmap (:[])
+                  . H.toList
+                  . (!! 2)
+                  . H.toColumns
+                  . (\(!x, _, _) -> x)
+                  . H.svd
+                  . H.assoc (S.rows m, S.cols m) 0
+                  . fmap (\(!i, !j, !x) -> ((i, j), x))
+                  . S.toList
+                  $ m
+
+-- | Obtain the degree matrix. Faster for columns.
 getDegreeMatrix :: AdjacencyMatrix -> S.SparseMatrixXd
 getDegreeMatrix = S.diagRow 0 . getDegreeVector
 
--- | Obtain the degree vector.
+-- | Obtain the degree vector. Faster for columns.
 getDegreeVector :: AdjacencyMatrix -> S.SparseMatrixXd
-getDegreeVector = S.getRowSums
+getDegreeVector = S.getColSums
