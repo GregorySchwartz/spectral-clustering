@@ -9,6 +9,7 @@ module Math.Clustering.Spectral.Dense
     , spectralClusterNorm
     , spectralNorm
     , getDegreeMatrix
+    , AdjacencyMatrix (..)
     ) where
 
 -- Remote
