@@ -22,6 +22,7 @@ import Data.Function (on)
 import Data.KMeans (kmeansGen)
 import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
+import Safe (headMay)
 import System.Random.MWC (createSystemRandom, uniform)
 import qualified Data.Eigen.SparseMatrix as S
 import qualified Data.Eigen.SparseMatrix.Utility as S
@@ -35,27 +36,29 @@ import qualified Statistics.Quantile as Stat
 type LabelVector     = S.SparseMatrixXd
 type AdjacencyMatrix = S.SparseMatrixXd
 
--- | Returns the eigenvector with the second smallest eigenvalue of the
--- symmetric normalized Laplacian L. Computes real symmetric part of L, so
--- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
--- matrix. Clusters the eigenvector using kmeans into k groups.
-spectralClusterKNorm :: Int -> AdjacencyMatrix -> LabelVector
-spectralClusterKNorm k = kmeansVec k . spectralNorm
+-- | Returns the clustering of the eigenvectors with the second smallest
+-- eigenvalues of the symmetric normalized Laplacian L. Computes real symmetric
+-- part of L, so ensure the input is real and symmetric. Diagonal should be 0s
+-- for adjacency matrix. Clusters the eigenvector using kmeans into k groups.
+spectralClusterKNorm :: Int -> Int -> AdjacencyMatrix -> LabelVector
+spectralClusterKNorm e k = kmeansVec k . spectralNorm e
 
--- | Returns the eigenvector with the second smallest eigenvalue of the
--- symmetric normalized Laplacian L. Computes real symmetric part of L, so
--- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
--- matrix. Clusters the eigenvector by sign.
+-- | Returns the clustering of the eigenvectors with the second smallest
+-- eigenvalues of the symmetric normalized Laplacian L. Computes real symmetric
+-- part of L, so ensure the input is real and symmetric. Diagonal should be 0s
+-- for adjacency matrix. Clusters the eigenvector by sign.
 spectralClusterNorm :: AdjacencyMatrix -> LabelVector
-spectralClusterNorm = S._map (bool 0 1 . (>= 0)) . spectralNorm
+spectralClusterNorm = S._map (bool 0 1 . (>= 0)) . spectralNorm 1
 
 -- | Returns the eigenvector with the second smallest eigenvalue of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix. Uses I + Lnorm instead of I - Lnorm to find second largest singular
 -- value instead of second smallest for Lnorm.
-spectralNorm :: AdjacencyMatrix -> S.SparseMatrixXd
-spectralNorm mat = secondLeft lNorm
+spectralNorm :: Int -> AdjacencyMatrix -> S.SparseMatrixXd
+spectralNorm e mat
+    | e < 1 = error "Less than 1 eigenvector chosen for clustering."
+    | otherwise = secondLeft e lNorm
   where
     lNorm    = i + (S.transpose invRootD * (mat * invRootD))
     invRootD = S.diagRow 0
@@ -115,24 +118,24 @@ kmeansVec k = S.fromDenseList
             . sortBy (compare `on` fst)
             . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
             . zip [0..] -- To get cluster id.
-            . kmeansGen ((:[]) . snd) k
+            . kmeansGen snd k
             . zip [0..] -- To keep track of index.
-            . concat
-            . S.toDenseList
+            . concatMap S.toDenseList
+            . S.getRows
 
--- | Obtain the second largest value singular vector of a sparse matrix.
-secondLeft :: S.SparseMatrixXd -> S.SparseMatrixXd
-secondLeft m = S.fromDenseList
-             . fmap (:[])
-             . H.toList
-             . last
-             . H.toRows
-             . (\(!x, _, _) -> x)
-             . SVD.sparseSvd 2
-             . H.mkCSR
-             . fmap (\(!i, !j, !x) -> ((i, j), x))
-             . S.toList
-             $ m
+-- | Obtain the second largest value singular vector and on of a sparse matrix.
+secondLeft :: Int -> S.SparseMatrixXd -> S.SparseMatrixXd
+secondLeft e m = S.transpose
+               . S.fromDenseList
+               . fmap H.toList
+               . drop 1
+               . H.toRows
+               . (\(!x, _, _) -> x)
+               . SVD.sparseSvd (e + 1)
+               . H.mkCSR
+               . fmap (\(!i, !j, !x) -> ((i, j), x))
+               . S.toList
+               $ m
 
 -- | Obtain the second largest value singular vector of a sparse matrix.
 denseSecondLeft :: S.SparseMatrixXd -> S.SparseMatrixXd

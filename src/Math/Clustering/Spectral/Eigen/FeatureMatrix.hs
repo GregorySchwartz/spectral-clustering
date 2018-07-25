@@ -78,19 +78,19 @@ bToD (B b) = D . S.diagCol 0 $ b * ((S.transpose b) * S.ones n)
 bdToC :: B -> D -> C
 bdToC (B b) (D d) = C $ (S._map (\x -> x ** (- 1 / 2)) d) * b
 
--- | Obtain the second left singular vector of a sparse matrix.
-secondLeft :: S.SparseMatrixXd -> S.SparseMatrixXd
-secondLeft m = S.fromDenseList
-             . fmap (:[])
-             . H.toList
-             . last
-             . H.toRows
-             . (\(!x, _, _) -> x)
-             . SVD.sparseSvd 2
-             . H.mkCSR
-             . fmap (\(!i, !j, !x) -> ((i, j), x))
-             . S.toList
-             $ m
+-- | Obtain the second largest value singular vector and on of a sparse matrix.
+secondLeft :: Int -> S.SparseMatrixXd -> S.SparseMatrixXd
+secondLeft e m = S.transpose
+               . S.fromDenseList
+               . fmap H.toList
+               . drop 1
+               . H.toRows
+               . (\(!x, _, _) -> x)
+               . SVD.sparseSvd (e + 1)
+               . H.mkCSR
+               . fmap (\(!i, !j, !x) -> ((i, j), x))
+               . S.toList
+               $ m
 
 -- | Get the normalized matrix B from an input matrix where the features are
 -- columns and rows are observations. Optionally, do not normalize.
@@ -102,8 +102,8 @@ getB False = b2ToB . B2
 -- Assumes the columns are features and rows are observations. B is the
 -- normalized matrix (from getB). See Shu et al., "Efficient Spectral
 -- Neighborhood Blocking for Entity Resolution", 2011.
-spectral :: B -> S.SparseMatrixXd
-spectral b = secondLeft . unC . bdToC b . bToD $ b
+spectral :: Int -> B -> S.SparseMatrixXd
+spectral e b = secondLeft e . unC . bdToC b . bToD $ b
 
 -- | Returns a vector of cluster labels for two groups by finding the second
 -- left singular vector of a special normalized matrix. Assumes the columns are
@@ -111,24 +111,24 @@ spectral b = secondLeft . unC . bdToC b . bToD $ b
 -- See Shu et al., "Efficient Spectral Neighborhood Blocking for Entity
 -- Resolution", 2011.
 spectralCluster :: B -> LabelVector
-spectralCluster = S._map (bool 0 1 . (>= 0)) . spectral
+spectralCluster = S._map (bool 0 1 . (>= 0)) . spectral 1
 
 -- | Returns a vector of cluster labels for two groups by finding the second
--- left singular vector of a special normalized matrix and running kmeans.
+-- left singular vector and on of a special normalized matrix and running kmeans.
 -- Assumes the columns are features and rows are observations. B is the
 -- normalized matrix (from getB). See Shu et al., "Efficient Spectral
 -- Neighborhood Blocking for Entity Resolution", 2011.
-spectralClusterK :: Int -> B -> LabelVector
-spectralClusterK k = S.fromDenseList
-                   . fmap ((:[]) . snd)
-                   . sortBy (compare `on` fst)
-                   . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
-                   . zip [0..] -- To get cluster id.
-                   . kmeansGen ((:[]) . snd) k
-                   . zip [0..] -- To keep track of index.
-                   . concat
-                   . S.toDenseList
-                   . spectral
+spectralClusterK :: Int -> Int -> B -> LabelVector
+spectralClusterK e k = S.fromDenseList
+                     . fmap ((:[]) . snd)
+                     . sortBy (compare `on` fst)
+                     . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
+                     . zip [0..] -- To get cluster id.
+                     . kmeansGen snd k
+                     . zip [0..] -- To keep track of index.
+                     . concatMap S.toDenseList
+                     . S.getRows
+                     . spectral e
 
 -- | Get the cosine similarity between two rows using B2.
 getSimilarityFromB2 :: B2 -> Int -> Int -> Double

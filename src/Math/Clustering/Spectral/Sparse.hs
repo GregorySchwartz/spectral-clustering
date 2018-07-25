@@ -24,9 +24,11 @@ module Math.Clustering.Spectral.Sparse
 
 -- Remote
 import Data.Bool (bool)
+import Data.Maybe (fromMaybe)
 import Data.Function (on)
 import Data.KMeans (kmeansGen)
-import Data.List (sortBy)
+import Data.List (sortBy, foldl1')
+import Safe (headMay)
 import qualified Data.Sparse.Common as S
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
@@ -94,19 +96,16 @@ bToD (B b) = D
 bdToC :: B -> D -> C
 bdToC (B b) (D d) = C $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
 
--- | Obtain the second left singular vector of a sparse matrix.
-secondLeft :: S.SpMatrix Double -> S.SpVector Double
-secondLeft m = S.sparsifySV
-             . S.fromListDenseSV (S.nrows m)
-             . H.toList
-             . last
-             . H.toRows
-             . (\(!x, _, _) -> x)
-             . SVD.sparseSvd 2
-             . H.mkCSR
-             . fmap (\(!i, !j, !x) -> ((i, j), x))
-             . S.toListSM
-             $ m
+-- | Obtain the second left singular vector and on of a sparse matrix.
+secondLeft :: Int -> S.SpMatrix Double -> [S.SpVector Double]
+secondLeft e m = fmap (S.sparsifySV . S.fromListDenseSV e . drop 1 . H.toList)
+               . H.toColumns
+               . (\(!x, _, _) -> x)
+               . SVD.sparseSvd (e + 1)
+               . H.mkCSR
+               . fmap (\(!i, !j, !x) -> ((i, j), x))
+               . S.toListSM
+               $ m
 
 -- | Get the normalized matrix B from an input matrix where the features are
 -- columns and rows are observations. Optionally, do not normalize.
@@ -114,12 +113,14 @@ getB :: Bool -> S.SpMatrix Double -> B
 getB True = b2ToB . b1ToB2 . B1
 getB False = b2ToB . B2
 
--- | Returns the second left singular vector of a sparse spectral process.
+-- | Returns the second left singular vector and on of a sparse spectral process.
 -- Assumes the columns are features and rows are observations. B is the
 -- normalized matrix (from getB). See Shu et al., "Efficient Spectral
 -- Neighborhood Blocking for Entity Resolution", 2011.
-spectral :: B -> S.SpVector Double
-spectral b = secondLeft . unC . bdToC b . bToD $ b
+spectral :: Int -> B -> [S.SpVector Double]
+spectral e b
+    | e < 1     = error "Less than 1 eigenvector chosen for clustering."
+    | otherwise = secondLeft e . unC . bdToC b . bToD $ b
 
 -- | Returns a vector of cluster labels for two groups by finding the second
 -- left singular vector of a special normalized matrix. Assumes the columns are
@@ -127,27 +128,30 @@ spectral b = secondLeft . unC . bdToC b . bToD $ b
 -- See Shu et al., "Efficient Spectral Neighborhood Blocking for Entity
 -- Resolution", 2011.
 spectralCluster :: B -> LabelVector
-spectralCluster = S.sparsifySV . fmap (bool 0 1 . (>= 0)) . spectral
+spectralCluster = S.sparsifySV
+                . fmap (bool 0 1 . (>= 0))
+                . foldl1' S.concatSV
+                . spectral 1
 
 -- | Returns a vector of cluster labels for two groups by finding the second
--- left singular vector of a special normalized matrix and running kmeans.
+-- left singular vector and on of a special normalized matrix and running kmeans.
 -- Assumes the columns are features and rows are observations. B is the
 -- normalized matrix (from getB). See Shu et al., "Efficient Spectral
 -- Neighborhood Blocking for Entity Resolution", 2011.
-spectralClusterK :: Int -> B -> LabelVector
-spectralClusterK k = kmeansVec k . spectral
+spectralClusterK :: Int -> Int -> B -> LabelVector
+spectralClusterK e k = kmeansVec k . spectral e
 
 -- | Executes kmeans to cluster a vector.
-kmeansVec :: Int -> S.SpVector Double -> LabelVector
+kmeansVec :: Int -> [S.SpVector Double] -> LabelVector
 kmeansVec k = S.sparsifySV
             . S.vr
             . fmap snd
             . sortBy (compare `on` fst)
             . concatMap (\(c, xs) -> fmap (\(i, _) -> (i, c)) xs)
             . zip [0..] -- To get cluster id.
-            . kmeansGen ((:[]) . snd) k
+            . kmeansGen snd k
             . zip [0..] -- To keep track of index.
-            . S.toDenseListSV
+            . fmap S.toDenseListSV
 
 -- | Get the cosine similarity between two rows using B2.
 getSimilarityFromB2 :: B2 -> Int -> Int -> Double
@@ -155,13 +159,13 @@ getSimilarityFromB2 (B2 b2) i j =
     S.dot (S.extractRow b2 i) (S.extractRow b2 j)
         / (S.norm2 (S.extractRow b2 i) * S.norm2 (S.extractRow b2 j))
 
--- | Returns the eigenvector with the second smallest eigenvalue of the
+-- | Returns the eigenvector with the second smallest eigenvalue and on of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix. Uses I + Lnorm instead of I - Lnorm to find second largest singular
 -- value instead of second smallest for Lnorm.
-spectralNorm :: AdjacencyMatrix -> S.SpVector Double
-spectralNorm mat = secondLeft lNorm
+spectralNorm :: Int -> AdjacencyMatrix -> [S.SpVector Double]
+spectralNorm e mat = secondLeft e lNorm
   where
     lNorm    = i S.^+^ (S.transpose invRootD S.#~# (mat S.#~# invRootD))
     invRootD = S.diagonalSM
@@ -171,16 +175,17 @@ spectralNorm mat = secondLeft lNorm
              $ mat
     i        = S.eye . S.nrows $ mat
 
--- | Returns the eigenvector with the second smallest eigenvalue of the
+-- | Returns the eigenvector with the second smallest eigenvalue and on of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix. Clusters the eigenvector using kmeans into k groups.
-spectralClusterKNorm :: Int -> AdjacencyMatrix -> LabelVector
-spectralClusterKNorm k = kmeansVec k . spectralNorm
+spectralClusterKNorm :: Int -> Int -> AdjacencyMatrix -> LabelVector
+spectralClusterKNorm e k = kmeansVec k . spectralNorm e
 
 -- | Returns the eigenvector with the second smallest eigenvalue of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix. Clusters the eigenvector by sign.
 spectralClusterNorm :: AdjacencyMatrix -> LabelVector
-spectralClusterNorm = fmap (bool 0 1 . (>= 0)) . spectralNorm
+spectralClusterNorm =
+    fmap (bool 0 1 . (>= 0)) . foldl1' S.concatSV . spectralNorm 1
