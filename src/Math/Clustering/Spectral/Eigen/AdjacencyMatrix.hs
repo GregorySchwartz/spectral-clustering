@@ -25,7 +25,6 @@ import Data.Maybe (fromMaybe)
 import Safe (headMay)
 import System.Random.MWC (createSystemRandom, uniform)
 import qualified Data.Eigen.SparseMatrix as S
-import qualified Data.Eigen.SparseMatrix.Utility as S
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD

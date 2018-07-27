@@ -25,7 +25,6 @@ import Data.KMeans (kmeansGen)
 import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
 import qualified Data.Eigen.SparseMatrix as S
-import qualified Data.Eigen.SparseMatrix.Utility as S
 import qualified Data.Vector.Storable as VS
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H

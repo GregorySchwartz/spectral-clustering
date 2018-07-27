@@ -21,7 +21,6 @@ library
                      , Math.Clustering.Spectral.Eigen.AdjacencyMatrix
   build-depends:       base >= 4.7 && < 5
                      , eigen
-                     , eigen-sparse-utils
                      , hmatrix
                      , hmatrix-svdlibc
                      , kmeans
