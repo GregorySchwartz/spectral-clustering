@@ -41,8 +41,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - eigen-3.3.4.1
-- hmatrix-svdlibc-0.4.1
-- hmatrix-0.18.2.0
+- hmatrix-svdlibc-0.5.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
