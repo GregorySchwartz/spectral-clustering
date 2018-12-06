@@ -20,10 +20,10 @@ library
                      , Math.Clustering.Spectral.Eigen.FeatureMatrix
                      , Math.Clustering.Spectral.Eigen.AdjacencyMatrix
   build-depends:       base >= 4.7 && < 5
+                     , clustering
                      , eigen
                      , hmatrix
                      , hmatrix-svdlibc
-                     , kmeans
                      , mwc-random
                      , safe
                      , sparse-linear-algebra
