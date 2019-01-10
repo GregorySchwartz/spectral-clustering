@@ -7,3 +7,4 @@ See [[https://github.com/GregorySchwartz/spectral-clustering]] for the latest ve
 
 =spectral-clustering= is a Haskell library for spectral clustering of dense and
 sparse matrices. Check the [[https://hackage.haskell.org/package/spectral-clustering][documentation]] for information on each function.
+Relies on =eigen3.3.4.1= right now.
