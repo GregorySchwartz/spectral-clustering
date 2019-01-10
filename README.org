@@ -1,6 +1,8 @@
 #+TITLE: spectral-clustering
 #+AUTHOR: Gregory W. Schwartz
 
+See [[https://github.com/GregorySchwartz/spectral-clustering]] for the latest version.
+
 * Description
 
 =spectral-clustering= is a Haskell library for spectral clustering of dense and
