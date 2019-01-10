@@ -1,0 +1,7 @@
+#+TITLE: spectral-clustering
+#+AUTHOR: Gregory W. Schwartz
+
+* Description
+
+=spectral-clustering= is a Haskell library for spectral clustering of dense and
+sparse matrices. Check the [[https://hackage.haskell.org/package/spectral-clustering][documentation]] for information on each function.
