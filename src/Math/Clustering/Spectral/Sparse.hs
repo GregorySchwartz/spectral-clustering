@@ -11,6 +11,7 @@ module Math.Clustering.Spectral.Sparse
     , B1 (..)
     , B2 (..)
     , AdjacencyMatrix (..)
+    , LabelVector (..)
     , spectral
     , spectralCluster
     , spectralClusterK
@@ -39,12 +40,22 @@ import Debug.Trace
 
 -- Local
 
+-- | Output vector containing cluster assignment (0 or 1).
 type LabelVector = S.SpVector Double
+
+-- | Adjacency matrix input.
 type AdjacencyMatrix = S.SpMatrix Double
+
+-- | B1 observation by feature matrix.
 newtype B1 = B1 { unB1 :: S.SpMatrix Double } deriving (Show)
+-- | B2 term frequency-inverse document frequency matrix of B1.
 newtype B2 = B2 { unB2 :: S.SpMatrix Double } deriving (Show)
+-- | Diagonal matrix from \(diag(B(B^{T}1))\).
 newtype D  = D { unD :: S.SpMatrix Double } deriving (Show)
+-- | Matrix from \(D^{-1/2}B}\).
 newtype C  = C { unC :: S.SpMatrix Double } deriving (Show)
+-- | Normed rows of B2. For a complete explanation, see Shu et al., "Efficient
+-- Spectral Neighborhood Blocking for Entity Resolution", 2011.
 newtype B  = B { unB :: S.SpMatrix Double } deriving (Show)
 
 -- | Normalize the input matrix by column. Here, columns are features.

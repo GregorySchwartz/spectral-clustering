@@ -13,6 +13,7 @@ module Math.Clustering.Spectral.Eigen.AdjacencyMatrix
     , getDegreeMatrix
     , secondLeft
     , AdjacencyMatrix (..)
+    , LabelVector (..)
     ) where
 
 -- Remote

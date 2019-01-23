@@ -10,6 +10,7 @@ module Math.Clustering.Spectral.Eigen.FeatureMatrix
     ( B (..)
     , B1 (..)
     , B2 (..)
+    , LabelVector (..)
     , spectral
     , spectralCluster
     , spectralClusterK
@@ -34,11 +35,18 @@ import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
 
 -- Local
 
+-- | Output vector containing cluster assignment (0 or 1).
 type LabelVector = S.SparseMatrixXd
+-- | B1 observation by feature matrix.
 newtype B1 = B1 { unB1 :: S.SparseMatrixXd } deriving (Show)
+-- | B2 term frequency-inverse document frequency matrix of B1.
 newtype B2 = B2 { unB2 :: S.SparseMatrixXd } deriving (Show)
+-- | Diagonal matrix from \(diag(B(B^{T}1))\).
 newtype D  = D { unD :: S.SparseMatrixXd } deriving (Show)
+-- | Matrix from \(D^{-1/2}B}\).
 newtype C  = C { unC :: S.SparseMatrixXd } deriving (Show)
+-- | Normed rows of B2. For a complete explanation, see Shu et al., "Efficient
+-- Spectral Neighborhood Blocking for Entity Resolution", 2011.
 newtype B  = B { unB :: S.SparseMatrixXd } deriving (Show)
 
 -- | Normalize the input matrix by column. Here, columns are features.
