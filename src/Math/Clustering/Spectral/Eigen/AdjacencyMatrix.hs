@@ -173,10 +173,10 @@ denseSecondLeft m = S.fromDenseList
                   . S.toList
                   $ m
 
--- | Obtain the degree matrix. Faster for columns.
+-- | Obtain the signed degree matrix. Faster for columns.
 getDegreeMatrix :: AdjacencyMatrix -> S.SparseMatrixXd
 getDegreeMatrix = S.diagRow 0 . getDegreeVector
 
--- | Obtain the degree vector. Faster for columns.
+-- | Obtain the signed degree vector. Faster for columns.
 getDegreeVector :: AdjacencyMatrix -> S.SparseMatrixXd
-getDegreeVector = S.getColSums
+getDegreeVector = S.getColSums . S._map abs

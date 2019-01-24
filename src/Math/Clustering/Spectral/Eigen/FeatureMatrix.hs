@@ -77,9 +77,9 @@ b2ToB (B2 b2) =
     eVec :: VS.Vector Double
     eVec = VS.fromList . fmap S.norm . S.getRows $ b2
 
--- | Get the diagonal transformed B matrix.
+-- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
-bToD (B b) = D . S.diagCol 0 $ b * ((S.transpose b) * S.ones n)
+bToD (B b) = D . S.diagCol 0 $ b * ((S._map abs $ S.transpose b) * S.ones n)
   where
     n = S.rows b
 

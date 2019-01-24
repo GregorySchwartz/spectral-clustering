@@ -79,7 +79,7 @@ cimap f mat = H.assoc (H.size mat) 0
 b1ToB2 :: B1 -> B2
 b1ToB2 (B1 b1) =
     B2
-      . cimap (\ !i !j !x -> (log (fromIntegral n / (fromMaybe 0 $ dVec VS.!? j))) * x)
+      . cimap (\ !i !j !x -> (log (fromIntegral n / (fromMaybe (error "Missing degree for observation. This would lead to divide by 0 error.") $ dVec VS.!? j))) * x)
       $ b1
   where
     dVec :: H.Vector Double
@@ -93,20 +93,20 @@ b1ToB2 (B1 b1) =
 -- | Euclidean norm each row.
 b2ToB :: B2 -> B
 b2ToB (B2 b2) =
-    B . cimap (\ !i !j !x -> x / (fromMaybe 0 $ eVec VS.!? i)) $ b2
+    B . cimap (\ !i !j !x -> x / (fromMaybe (error "Missing degree for observation. This would lead to divide by 0 error.") $ eVec VS.!? i)) $ b2
   where
     eVec :: H.Vector Double
     eVec = H.fromList . fmap H.norm_2 . H.toRows $ b2
     n = H.rows b2
     m = H.cols b2
 
--- | Get the diagonal transformed B matrix.
+-- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
            . H.diag
            . H.flatten
            $ b
-        H.<> ((H.tr b) H.<> ((n H.>< 1) [1,1..]))
+        H.<> ((H.cmap abs $ H.tr b) H.<> ((n H.>< 1) [1,1..]))
   where
     n = H.rows b
 
@@ -237,10 +237,10 @@ spectralNorm n e mat
           $ mat
     i     = H.ident . H.rows $ mat
 
--- | Obtain the degree matrix.
+-- | Obtain the signed degree matrix.
 getDegreeMatrix :: AdjacencyMatrix -> H.Matrix Double
 getDegreeMatrix = H.diag . getDegreeVector
 
--- | Obtain the degree vector.
+-- | Obtain the signed degree vector.
 getDegreeVector :: AdjacencyMatrix -> H.Vector Double
-getDegreeVector = H.vector . fmap H.sumElements . H.toRows
+getDegreeVector = H.vector . fmap (H.sumElements . H.cmap abs) . H.toRows

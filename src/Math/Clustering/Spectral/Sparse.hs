@@ -95,13 +95,13 @@ b2ToB (B2 b2) =
 norm2 :: S.SpVector Double -> Double
 norm2 = sqrt . sum . fmap (** 2)
 
--- | Get the diagonal transformed B matrix.
+-- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
            . S.diagonalSM
            . flip S.extractCol 0
            $ b
-       S.#~# ((S.transposeSM b) S.#~# (S.fromColsL [S.onesSV n]))
+       S.#~# ((fmap abs $ S.transposeSM b) S.#~# (S.fromColsL [S.onesSV n]))
   where
     n = S.nrows b
 
@@ -202,6 +202,7 @@ spectralNorm n e mat = secondLeft n e lNorm
              . S.vr
              . fmap ((\x -> if x == 0 then x else x ** (- 1 / 2)) . sum)
              . S.toRowsL
+             . fmap abs -- signed diagonal
              $ mat
     i        = S.eye . S.nrows $ mat
 
