@@ -105,7 +105,7 @@ bToD :: B -> D
 bToD (B b) = D
            . H.diag
            . H.flatten
-           $ b
+           $ (H.cmap abs b)
         H.<> ((H.cmap abs $ H.tr b) H.<> ((n H.>< 1) [1,1..]))
   where
     n = H.rows b

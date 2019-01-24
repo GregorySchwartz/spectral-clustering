@@ -100,7 +100,7 @@ bToD :: B -> D
 bToD (B b) = D
            . S.diagonalSM
            . flip S.extractCol 0
-           $ b
+           $ (fmap abs b)
        S.#~# ((fmap abs $ S.transposeSM b) S.#~# (S.fromColsL [S.onesSV n]))
   where
     n = S.nrows b

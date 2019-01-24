@@ -79,7 +79,7 @@ b2ToB (B2 b2) =
 
 -- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
-bToD (B b) = D . S.diagCol 0 $ b * ((S._map abs $ S.transpose b) * S.ones n)
+bToD (B b) = D . S.diagCol 0 $ (S._map abs b) * ((S._map abs $ S.transpose b) * S.ones n)
   where
     n = S.rows b
 
