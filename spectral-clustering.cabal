@@ -1,5 +1,5 @@
 name:                spectral-clustering
-version:             0.2.1.4
+version:             0.2.2.0
 synopsis:            Library for spectral clustering.
 description:         Spectral clustering of a matrix.
 homepage:            http://github.com/GregorySchwartz/spectral-clustering#readme
@@ -7,7 +7,7 @@ license:             GPL-3
 license-file:        LICENSE
 author:              Gregory W. Schwartz
 maintainer:          gsch@mail.med.upenn.edu
-copyright:           2018 Gregory W. Schwartz
+copyright:           2019 Gregory W. Schwartz
 category:            Math
 build-type:          Simple
 -- extra-source-files:

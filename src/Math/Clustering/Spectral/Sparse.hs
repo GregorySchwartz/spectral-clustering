@@ -36,7 +36,6 @@ import qualified Data.Vector.Unboxed as U
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
-import Debug.Trace
 
 -- Local
 
