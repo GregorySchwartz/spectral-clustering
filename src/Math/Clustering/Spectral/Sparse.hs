@@ -27,15 +27,17 @@ module Math.Clustering.Spectral.Sparse
 import Data.Bool (bool)
 import Data.Maybe (fromMaybe)
 import Data.Function (on)
-import Data.List (sortBy, foldl1')
+import Data.List (sortBy, foldl1', maximumBy, transpose)
 import Safe (headMay)
 import qualified AI.Clustering.KMeans as K
+import qualified Data.Map.Strict as Map
 import qualified Data.Sparse.Common as S
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as U
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
+import Debug.Trace
 
 -- Local
 
@@ -115,8 +117,10 @@ secondLeft :: Int -> Int -> S.SpMatrix Double -> [S.SpVector Double]
 secondLeft n e m =
   fmap (S.sparsifySV . S.fromListDenseSV e . drop (n - 1) . H.toList)
     . H.toColumns
+    . (\x -> traceShow x x)
     . (\(!x, _, _) -> x)
     . SVD.sparseSvd (e + (n - 1))
+    . (\x -> traceShow x x)
     . H.mkCSR
     . fmap (\(!i, !j, !x) -> ((i, j), x))
     . S.toListSM
@@ -136,7 +140,8 @@ spectral :: Int -> Int -> B -> [S.SpVector Double]
 spectral n e b
     | e < 1     = error "Less than 1 eigenvector chosen for clustering."
     | n < 1 = error "N < 1, cannot go before first eigenvector."
-    | otherwise = secondLeft n e . unC . bdToC b . bToD $ b
+    | otherwise =
+        fmap S.sparsifySV . secondLeft n e . unC . bdToC b . bToD $ b
 
 -- | Returns a vector of cluster labels for two groups by finding the second
 -- left singular vector of a special normalized matrix. Assumes the columns are
@@ -164,16 +169,11 @@ spectralClusterK :: Int -> Int -> B -> LabelVector
 spectralClusterK e k (B b)
   | S.nrows b < 1  = S.zeroSV 0
   | S.nrows b == 1 = S.zeroSV 1
-  | otherwise      = kmeansVec k . spectral 1 e $ B b
+  | otherwise      = kmeansVec k . spectral 2 e $ B b
 
 -- | Executes kmeans to cluster a vector.
 kmeansVec :: Int -> [S.SpVector Double] -> LabelVector
-kmeansVec k = S.sparsifySV
-            . S.vr
-            . fmap fromIntegral
-            . U.toList
-            . K.membership
-            . (\x -> K.kmeansBy k x id K.defaultKMeansOpts)
+kmeansVec k = consensusKmeans 100
             . V.fromList
             . fmap (U.fromList . S.toDenseListSV)
             . S.toRowsL
@@ -182,6 +182,37 @@ kmeansVec k = S.sparsifySV
             . S.toColsL
             . S.transpose
             . S.fromColsL
+
+-- | Consensus kmeans.
+consensusKmeans :: Int -> V.Vector (U.Vector Double) -> LabelVector
+consensusKmeans x vs = S.sparsifySV
+                     . S.vr
+                     . fmap (fromIntegral . mostCommon)
+                     . transpose
+                     . fmap kmeansFunc
+                     $ [1 .. fromIntegral x]
+  where
+    kmeansFunc run =
+      (\xs -> if headMay xs == Just 1 then fmap (bool 0 1 . (== 0)) xs else xs)
+        . U.toList
+        . K.membership
+        . K.kmeansBy 2 vs id
+        $ K.defaultKMeansOpts
+            { K.kmeansMethod = K.Forgy
+            , K.kmeansClusters = False
+            , K.kmeansSeed = U.fromList [run]
+            }
+
+-- | Get the most common element of a list.
+mostCommon :: (Ord a) => [a] -> a
+mostCommon [] = error "Cannot find most common element of empty list."
+mostCommon [x] = x
+mostCommon xs = fst
+               . maximumBy (compare `on` snd)
+               . Map.toAscList
+               . Map.fromListWith (+)
+               . flip zip [1,1..]
+               $ xs
 
 -- | Get the cosine similarity between two rows using B2.
 getSimilarityFromB2 :: B2 -> Int -> Int -> Double
@@ -195,7 +226,7 @@ getSimilarityFromB2 (B2 b2) i j =
 -- for adjacency matrix. Uses I + Lnorm instead of I - Lnorm to find second
 -- largest singular value instead of second smallest for Lnorm.
 spectralNorm :: Int -> Int -> AdjacencyMatrix -> [S.SpVector Double]
-spectralNorm n e mat = secondLeft n e lNorm
+spectralNorm n e mat = fmap S.sparsifySV $ secondLeft n e lNorm
   where
     lNorm    = i S.^+^ (S.transpose invRootD S.#~# (mat S.#~# invRootD))
     invRootD = S.diagonalSM
@@ -211,7 +242,7 @@ spectralNorm n e mat = secondLeft n e lNorm
 -- ensure the input is real and symmetric. Diagonal should be 0s for adjacency
 -- matrix. Clusters the eigenvector using kmeans into k groups.
 spectralClusterKNorm :: Int -> Int -> AdjacencyMatrix -> LabelVector
-spectralClusterKNorm e k = kmeansVec k . spectralNorm 1 e
+spectralClusterKNorm e k = kmeansVec k . spectralNorm 2 e
 
 -- | Returns the eigenvector with the second smallest eigenvalue of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so

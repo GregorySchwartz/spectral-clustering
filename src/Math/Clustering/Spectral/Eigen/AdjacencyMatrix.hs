@@ -20,12 +20,13 @@ module Math.Clustering.Spectral.Eigen.AdjacencyMatrix
 import Control.Monad (replicateM)
 import Data.Bool (bool)
 import Data.Function (on)
-import Data.List (sortBy)
+import Data.List (sortBy, maximumBy, transpose)
 import Data.Maybe (fromMaybe)
 import Safe (headMay)
 import System.Random.MWC (createSystemRandom, uniform)
 import qualified AI.Clustering.KMeans as K
 import qualified Data.Eigen.SparseMatrix as S
+import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as U
 import qualified Numeric.LinearAlgebra as H
@@ -38,6 +39,10 @@ import qualified Statistics.Quantile as Stat
 type LabelVector     = S.SparseMatrixXd
 type AdjacencyMatrix = S.SparseMatrixXd
 
+-- | Assign close to 0 as 0.
+epsilonZero :: Double -> Double
+epsilonZero x = if abs x < 1e-12 then 0 else x
+
 -- | Returns the clustering of the eigenvectors with the second smallest
 -- eigenvalues of the symmetric normalized Laplacian L. Computes real symmetric
 -- part of L, so ensure the input is real and symmetric. Diagonal should be 0s
@@ -46,7 +51,7 @@ spectralClusterKNorm :: Int -> Int -> AdjacencyMatrix -> LabelVector
 spectralClusterKNorm e k mat
   | S.rows mat < 1  = S.fromDenseList [[]]
   | S.rows mat == 1 = S.fromDenseList [[0]]
-  | otherwise       = kmeansVec k . spectralNorm 1 e $ mat
+  | otherwise       = kmeansVec k . spectralNorm 2 e $ mat
 
 -- | Returns the clustering of the eigenvectors with the second smallest
 -- eigenvalues of the symmetric normalized Laplacian L. Computes real symmetric
@@ -71,7 +76,7 @@ spectralNorm :: Int -> Int -> AdjacencyMatrix -> S.SparseMatrixXd
 spectralNorm n e mat
     | e < 1 = error "Less than 1 eigenvector chosen for clustering."
     | n < 1 = error "N < 1, cannot go before first eigenvector."
-    | otherwise = secondLeft n e lNorm
+    | otherwise = S._map epsilonZero $ secondLeft n e lNorm
   where
     lNorm    = i + (S.transpose invRootD * (mat * invRootD))
     invRootD = S.diagRow 0
@@ -125,11 +130,7 @@ powerIt a = do
 
 -- | Executes kmeans to cluster a one dimensional vector.
 kmeansVec :: Int -> S.SparseMatrixXd -> LabelVector
-kmeansVec k = S.fromDenseList
-            . fmap ((:[]) . fromIntegral)
-            . U.toList
-            . K.membership
-            . (\x -> K.kmeansBy k x id K.defaultKMeansOpts)
+kmeansVec k = consensusKmeans 100
             . V.fromList
             . fmap U.fromList
             . concatMap S.toDenseList
@@ -137,6 +138,36 @@ kmeansVec k = S.fromDenseList
             . S.fromCols
             . fmap normNormalize
             . S.getCols
+
+-- | Consensus kmeans.
+consensusKmeans :: Int -> V.Vector (U.Vector Double) -> LabelVector
+consensusKmeans x vs = S.fromDenseList
+                     . fmap ((:[]) . fromIntegral . mostCommon)
+                     . transpose
+                     . fmap kmeansFunc
+                     $ [1 .. fromIntegral x]
+  where
+    kmeansFunc run =
+      (\xs -> if headMay xs == Just 1 then fmap (bool 0 1 . (== 0)) xs else xs)
+        . U.toList
+        . K.membership
+        . K.kmeansBy 2 vs id
+        $ K.defaultKMeansOpts
+            { K.kmeansMethod = K.Forgy
+            , K.kmeansClusters = False
+            , K.kmeansSeed = U.fromList [run]
+            }
+
+-- | Get the most common element of a list.
+mostCommon :: (Ord a) => [a] -> a
+mostCommon [] = error "Cannot find most common element of empty list."
+mostCommon [x] = x
+mostCommon xs = fst
+               . maximumBy (compare `on` snd)
+               . Map.toAscList
+               . Map.fromListWith (+)
+               . flip zip [1,1..]
+               $ xs
 
 -- | Normalize by the norm of a vector.
 normNormalize :: S.SparseMatrixXd -> S.SparseMatrixXd

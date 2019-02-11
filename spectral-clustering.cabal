@@ -20,6 +20,7 @@ library
                      , Math.Clustering.Spectral.Eigen.FeatureMatrix
                      , Math.Clustering.Spectral.Eigen.AdjacencyMatrix
   build-depends:       base >= 4.7 && < 5
+                     , containers
                      , clustering
                      , eigen == 3.3.4.1
                      , hmatrix

@@ -4,6 +4,7 @@ Gregory W. Schwartz
 Collects the functions pertaining to spectral clustering.
 -}
 
+
 {-# LANGUAGE BangPatterns #-}
 
 module Math.Clustering.Spectral.Dense
@@ -27,10 +28,11 @@ module Math.Clustering.Spectral.Dense
 -- Remote
 import Data.Bool (bool)
 import Data.Function (on)
-import Data.List (sortBy)
+import Data.List (sortBy, maximumBy, transpose)
 import Data.Maybe (fromMaybe)
 import Safe (headMay)
 import qualified AI.Clustering.KMeans as K
+import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
 import qualified Data.Vector.Unboxed as U
@@ -58,6 +60,10 @@ newtype C  = C { unC :: H.Matrix Double } deriving (Show)
 -- | Normed rows of B2. For a complete explanation, see Shu et al., "Efficient
 -- Spectral Neighborhood Blocking for Entity Resolution", 2011.
 newtype B  = B { unB :: H.Matrix Double } deriving (Show)
+
+-- | Assign close to 0 as 0.
+epsilonZero :: Double -> Double
+epsilonZero x = if abs x < 1e-12 then 0 else x
 
 -- | Map hmatrix with indices.
 cimap :: (Int -> Int -> Double -> Double) -> H.Matrix Double -> H.Matrix Double
@@ -144,7 +150,8 @@ spectral :: Int -> Int -> B -> [H.Vector Double]
 spectral n e b
     | e < 1     = error "Less than 1 eigenvector chosen for clustering."
     | n < 1 = error "N < 1, cannot go before first eigenvector."
-    | otherwise = secondLeft n e . unC . bdToC b . bToD $ b
+    | otherwise =
+        fmap (H.cmap epsilonZero) . secondLeft n e . unC . bdToC b . bToD $ b
 
 -- | Returns a vector of cluster labels for two groups by finding the second
 -- left singular vector of a special normalized matrix. Assumes the columns are
@@ -169,21 +176,49 @@ spectralClusterK :: Int -> Int -> B -> LabelVector
 spectralClusterK e k (B b)
   | H.rows b < 1  = H.fromList []
   | H.rows b == 1 = H.fromList [0]
-  | otherwise     = kmeansVec k . spectral 1 e $ B b
+  | otherwise     = kmeansVec k . spectral 2 e $ B b
 
 -- | Executes kmeans to cluster a vector.
 kmeansVec :: Int -> [H.Vector Double] -> LabelVector
-kmeansVec k = V.convert
-            . U.map fromIntegral
-            . K.membership
-            . (\x -> K.kmeansBy k x id K.defaultKMeansOpts)
+kmeansVec k = consensusKmeans 100
             . V.fromList
-            . fmap V.convert
+            . fmap U.convert
             . H.toRows
             . H.fromColumns
             . fmap H.normalize -- Normalize within eigenvectors (columns).
             . H.toColumns
             . H.fromRows
+  where
+
+-- | Consensus kmeans.
+consensusKmeans :: Int -> V.Vector (U.Vector Double) -> LabelVector
+consensusKmeans x vs = H.fromList
+                     . fmap (fromIntegral . mostCommon)
+                     . transpose
+                     . fmap kmeansFunc
+                     $ [1 .. fromIntegral x]
+  where
+    kmeansFunc run =
+      (\xs -> if headMay xs == Just 1 then fmap (bool 0 1 . (== 0)) xs else xs)
+        . U.toList
+        . K.membership
+        . K.kmeansBy 2 vs id
+        $ K.defaultKMeansOpts
+            { K.kmeansMethod = K.Forgy
+            , K.kmeansClusters = False
+            , K.kmeansSeed = U.fromList [run]
+            } 
+
+-- | Get the most common element of a list.
+mostCommon :: (Ord a) => [a] -> a
+mostCommon [] = error "Cannot find most common element of empty list."
+mostCommon [x] = x
+mostCommon xs = fst
+               . maximumBy (compare `on` snd)
+               . Map.toAscList
+               . Map.fromListWith (+)
+               . flip zip [1,1..]
+               $ xs
 
 -- | Get the cosine similarity between two rows using B2.
 getSimilarityFromB2 :: B2 -> Int -> Int -> Double
@@ -201,7 +236,7 @@ spectralClusterKNorm e k mat
   | H.rows mat < 1  = H.fromList []
   | H.rows mat == 1 = H.fromList [0]
   | otherwise       = kmeansVec k
-                    . spectralNorm 1 e
+                    . spectralNorm 2 e
                     $ mat
 
 -- | Returns the eigenvector with the second smallest eigenvalue of the
@@ -212,8 +247,10 @@ spectralClusterNorm :: AdjacencyMatrix -> LabelVector
 spectralClusterNorm mat
   | H.rows mat < 1  = H.fromList []
   | H.rows mat == 1 = H.fromList [0]
-  | otherwise       =
-      H.cmap (bool 0 1 . (>= 0)) . mconcat . spectralNorm 2 1 $ mat
+  | otherwise       = H.cmap (bool 0 1 . (>= 0))
+                    . mconcat
+                    . spectralNorm 2 1
+                    $ mat
 
 -- | Returns the eigenvectors with the Nth smallest eigenvalue and on of the
 -- symmetric normalized Laplacian L. Computes real symmetric part of L, so
@@ -224,18 +261,26 @@ spectralNorm n e mat
     | e < 1 = error "Less than 1 eigenvector chosen for clustering."
     | n < 1 = error "N < 1, cannot go before first eigenvector."
     | otherwise = H.toRows
+                . H.cmap epsilonZero -- Correct accuracy.
                 . flip (H.??) (H.All, H.TakeLast e)
                 . flip (H.??) (H.All, H.DropLast (n - 1))
                 . snd
                 . H.eigSH
                 $ lNorm
   where
-    lNorm = H.sym $ i - mconcat [invD, mat, invD]
+    lNorm = H.trustSym $ i - mconcat [invD, mat, invD]
     invD  = H.diag
           . H.cmap (\x -> if x == 0 then x else x ** (- 1 / 2))
           . getDegreeVector
           $ mat
     i     = H.ident . H.rows $ mat
+
+-- | Sort an matrix by values in a vector.
+sortMatrixByVec :: H.Vector Double -> H.Matrix Double -> H.Matrix Double
+sortMatrixByVec xs mat = mat H.¿ sortedIdx
+  where
+    sortedIdx =
+      reverse . fmap fst . sortBy (compare `on` snd) . zip [0..] . H.toList $ xs
 
 -- | Obtain the signed degree matrix.
 getDegreeMatrix :: AdjacencyMatrix -> H.Matrix Double
