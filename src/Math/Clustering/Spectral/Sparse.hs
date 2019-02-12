@@ -37,7 +37,6 @@ import qualified Data.Vector.Unboxed as U
 import qualified Numeric.LinearAlgebra as H
 import qualified Numeric.LinearAlgebra.Devel as H
 import qualified Numeric.LinearAlgebra.SVD.SVDLIBC as SVD
-import Debug.Trace
 
 -- Local
 
@@ -117,10 +116,8 @@ secondLeft :: Int -> Int -> S.SpMatrix Double -> [S.SpVector Double]
 secondLeft n e m =
   fmap (S.sparsifySV . S.fromListDenseSV e . drop (n - 1) . H.toList)
     . H.toColumns
-    . (\x -> traceShow x x)
     . (\(!x, _, _) -> x)
     . SVD.sparseSvd (e + (n - 1))
-    . (\x -> traceShow x x)
     . H.mkCSR
     . fmap (\(!i, !j, !x) -> ((i, j), x))
     . S.toListSM
