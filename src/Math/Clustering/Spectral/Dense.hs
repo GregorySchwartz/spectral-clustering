@@ -53,13 +53,15 @@ type AdjacencyMatrix = H.Matrix Double
 newtype B1 = B1 { unB1 :: H.Matrix Double } deriving (Show)
 -- | B2 term frequency-inverse document frequency matrix of B1.
 newtype B2 = B2 { unB2 :: H.Matrix Double } deriving (Show)
--- | Diagonal matrix from \(diag(B(B^{T}1))\).
-newtype D  = D { unD :: H.Matrix Double } deriving (Show)
+-- | Diagonal matrix from \(diag(B(B^{T}1))\). Here in a vector format.
+newtype D  = D { unD :: H.Vector Double } deriving (Show)
 -- | Matrix from \(D^{-1/2}B}\).
 newtype C  = C { unC :: H.Matrix Double } deriving (Show)
 -- | Normed rows of B2. For a complete explanation, see Shu et al., "Efficient
 -- Spectral Neighborhood Blocking for Entity Resolution", 2011.
 newtype B  = B { unB :: H.Matrix Double } deriving (Show)
+-- | A diagonal matrix in a vector format.
+newtype Diag  = Diag { unDiag :: H.Vector Double } deriving (Show)
 
 -- | Assign close to 0 as 0.
 epsilonZero :: Double -> Double
@@ -109,7 +111,6 @@ b2ToB (B2 b2) =
 -- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
-           . H.diag
            . H.flatten
            $ (H.cmap abs b)
         H.<> ((H.cmap abs $ H.tr b) H.<> ((n H.>< 1) [1,1..]))
@@ -118,7 +119,7 @@ bToD (B b) = D
 
 -- | Get the matrix C as input for SVD.
 bdToC :: B -> D -> C
-bdToC (B b) (D d) = C $ (H.diag . H.cmap (\x -> x ** (- 1 / 2)) . H.takeDiag $ d) H.<> b
+bdToC (B b) (D d) = C $ diagMatMult (Diag $ H.cmap (\x -> x ** (- 1 / 2)) d) b
 
 -- | Obtain the second left singular vector (or N earlier) and E on of a sparse
 -- matrix.
@@ -268,14 +269,14 @@ spectralNorm n e mat
                 . H.eigSH
                 $ lNorm
   where
-    lNorm = H.trustSym $ i - mconcat [invD, mat, invD]
-    invD  = H.diag
+    lNorm = H.trustSym $ i - (matDiagMult (diagMatMult invD mat) invD)
+    invD  = Diag
           . H.cmap (\x -> if x == 0 then x else x ** (- 1 / 2))
           . getDegreeVector
           $ mat
     i     = H.ident . H.rows $ mat
 
--- | Sort an matrix by values in a vector.
+-- | Sort a matrix by values in a vector.
 sortMatrixByVec :: H.Vector Double -> H.Matrix Double -> H.Matrix Double
 sortMatrixByVec xs mat = mat H.¿ sortedIdx
   where
@@ -283,9 +284,21 @@ sortMatrixByVec xs mat = mat H.¿ sortedIdx
       reverse . fmap fst . sortBy (compare `on` snd) . zip [0..] . H.toList $ xs
 
 -- | Obtain the signed degree matrix.
-getDegreeMatrix :: AdjacencyMatrix -> H.Matrix Double
-getDegreeMatrix = H.diag . getDegreeVector
+getDegreeMatrix :: AdjacencyMatrix -> Diag
+getDegreeMatrix = Diag . getDegreeVector
 
 -- | Obtain the signed degree vector.
 getDegreeVector :: AdjacencyMatrix -> H.Vector Double
 getDegreeVector = H.vector . fmap (H.sumElements . H.cmap abs) . H.toRows
+
+-- | Diagonal matrix multiply from vector type.
+diagMatMult :: Diag -> H.Matrix Double -> H.Matrix Double
+diagMatMult (Diag d) = cimap mult
+  where
+    mult i _ v = v * (d H.! i)
+
+-- | Diagonal matrix multiply from vector type.
+matDiagMult :: H.Matrix Double -> Diag -> H.Matrix Double
+matDiagMult m (Diag d) = cimap mult m
+  where
+    mult _ j v = v * (d H.! j)
