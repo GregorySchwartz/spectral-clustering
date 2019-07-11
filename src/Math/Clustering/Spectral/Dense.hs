@@ -128,7 +128,7 @@ secondLeft n e m =
   fmap (VS.drop (n - 1))
     . H.toColumns
     . (\(!x, _, _) -> x)
-    . SVD.sparseSvd (e + (n - 1))
+    . SVD.sparseSvd' (SVD.defaultSVDParams {SVD.maxIters = Just 1000}) (e + (n - 1))
     . H.mkCSR
     . filter (\((_, _), x) -> x /= 0)
     . concatMap (\(!i, xs) -> fmap (\(!j, !x) -> ((i, j), x)) xs)

@@ -117,7 +117,7 @@ secondLeft n e m =
   fmap (S.sparsifySV . S.fromListDenseSV e . drop (n - 1) . H.toList)
     . H.toColumns
     . (\(!x, _, _) -> x)
-    . SVD.sparseSvd (e + (n - 1))
+    . SVD.sparseSvd' (SVD.defaultSVDParams {SVD.maxIters = Just 1000}) (e + (n - 1))
     . H.mkCSR
     . fmap (\(!i, !j, !x) -> ((i, j), x))
     . S.toListSM
