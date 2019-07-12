@@ -184,7 +184,7 @@ secondLeft n e m = S.transpose
                . drop (n - 1)
                . H.toRows
                . (\(!x, _, _) -> x)
-               . SVD.sparseSvd' (SVD.defaultSVDParams {SVD.maxIters = Just 1000}) (e + (n - 1))
+               . SVD.sparseSvd (e + (n - 1))
                . H.mkCSR
                . fmap (\(!i, !j, !x) -> ((i, j), x))
                . S.toList
