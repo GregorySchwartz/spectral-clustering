@@ -124,18 +124,28 @@ bdToC (B b) (D d) = C $ diagMatMult (Diag $ H.cmap (\x -> x ** (- 1 / 2)) d) b
 -- | Obtain the second left singular vector (or N earlier) and E on of a sparse
 -- matrix.
 secondLeft :: Int -> Int -> H.Matrix Double -> [H.Vector Double]
-secondLeft n e m =
-  fmap (VS.drop (n - 1))
-    . H.toColumns
-    . (\(!x, _, _) -> x)
-    . SVD.sparseSvd (e + (n - 1))
-    . H.mkCSR
-    . filter (\((_, _), x) -> x /= 0)
-    . concatMap (\(!i, xs) -> fmap (\(!j, !x) -> ((i, j), x)) xs)
-    . zip [0..]
-    . fmap (zip [0..])
-    . H.toLists
-    $ m
+secondLeft n e m = take e
+                 . drop (n - 1)
+                 . H.toColumns
+                 . (\(u, _, _) -> u)
+                 . H.svd
+                 $ m
+
+-- -- | Obtain the second left singular vector (or N earlier) and E on of a sparse
+-- -- matrix.
+-- secondLeft :: Int -> Int -> H.Matrix Double -> [H.Vector Double]
+-- secondLeft n e m =
+--   fmap (VS.drop (n - 1))
+--     . H.toColumns
+--     . (\(!x, _, _) -> x)
+--     . SVD.sparseSvd (e + (n - 1))
+--     . H.mkCSR
+--     . filter (\((_, _), x) -> x /= 0)
+--     . concatMap (\(!i, xs) -> fmap (\(!j, !x) -> ((i, j), x)) xs)
+--     . zip [0..]
+--     . fmap (zip [0..])
+--     . H.toLists
+--     $ m
 
 -- | Get the normalized matrix B from an input matrix where the features are
 -- columns and rows are observations. Optionally, do not normalize.
@@ -208,7 +218,7 @@ consensusKmeans x vs = H.fromList
             { K.kmeansMethod = K.Forgy
             , K.kmeansClusters = False
             , K.kmeansSeed = U.fromList [run]
-            } 
+            }
 
 -- | Get the most common element of a list.
 mostCommon :: (Ord a) => [a] -> a
