@@ -1,5 +1,5 @@
 name:                spectral-clustering
-version:             0.3.1.0
+version:             0.3.1.1
 synopsis:            Library for spectral clustering.
 description:         Spectral clustering of a matrix.
 homepage:            http://github.com/GregorySchwartz/spectral-clustering#readme
@@ -17,12 +17,12 @@ library
   hs-source-dirs:      src
   exposed-modules:     Math.Clustering.Spectral.Dense
                      , Math.Clustering.Spectral.Sparse
-                     , Math.Clustering.Spectral.Eigen.FeatureMatrix
-                     , Math.Clustering.Spectral.Eigen.AdjacencyMatrix
+                     -- , Math.Clustering.Spectral.Eigen.FeatureMatrix
+                     -- , Math.Clustering.Spectral.Eigen.AdjacencyMatrix
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , clustering
-                     , eigen == 3.3.4.1
+                     -- , eigen == 3.3.4.1
                      , hmatrix
                      , hmatrix-svdlibc
                      , mwc-random
