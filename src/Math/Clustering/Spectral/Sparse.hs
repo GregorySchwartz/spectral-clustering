@@ -51,7 +51,8 @@ newtype B1 = B1 { unB1 :: S.SpMatrix Double } deriving (Show)
 -- | B2 term frequency-inverse document frequency matrix of B1.
 newtype B2 = B2 { unB2 :: S.SpMatrix Double } deriving (Show)
 -- | Diagonal matrix from \(diag(B(B^{T}1))\).
-newtype D  = D { unD :: S.SpMatrix Double } deriving (Show)
+-- newtype D  = D { unD :: S.SpMatrix Double } deriving (Show)
+newtype D  = D { unD :: S.SpVector Double } deriving (Show)
 -- | Matrix from \(D^{-1/2}B}\).
 newtype C  = C { unC :: S.SpMatrix Double } deriving (Show)
 -- | Normed rows of B2. For a complete explanation, see Shu et al., "Efficient
@@ -99,7 +100,7 @@ norm2 = sqrt . sum . fmap (** 2)
 -- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
-           . S.diagonalSM
+           -- . S.diagonalSM
            . flip S.extractCol 0
            $ (fmap abs b)
        S.#~# ((fmap abs $ S.transposeSM b) S.#~# (S.fromColsL [S.onesSV n]))
@@ -108,7 +109,15 @@ bToD (B b) = D
 
 -- | Get the matrix C as input for SVD.
 bdToC :: B -> D -> C
-bdToC (B b) (D d) = C $ (fmap (\x -> x ** (- 1 / 2)) d) S.#~# b
+bdToC (B b) (D d) = C
+                  . S.fromListSM (S.dimSM b)
+                  . fmap (\ (!i, !j, !x)
+                        -> (i, j, (S.lookupDenseSV i d') * x)
+                        )
+                  . S.toListSM
+                  $ b
+  where
+    d' = S.sparsifySV $ fmap (\x -> x ** (-1 / 2)) d
 
 -- | Obtain the second left singular vector (or N earlier) and E on of a sparse
 -- matrix.
