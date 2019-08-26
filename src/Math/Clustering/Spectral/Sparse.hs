@@ -63,35 +63,31 @@ newtype B  = B { unB :: S.SpMatrix Double } deriving (Show)
 b1ToB2 :: B1 -> B2
 b1ToB2 (B1 b1) =
     B2
-        . S.fromListSM (n, m)
-        . fmap (\ (!i, !j, !x)
-               -> (i, j, (log (fromIntegral n / (S.lookupDenseSV j dVec))) * x)
-               )
-        . S.toListSM
+        . S.imapSM (\ _ !j !x -> (log (n / getValD j)) * x)
         $ b1
   where
-    dVec :: S.SpVector Double
-    dVec = S.vr
+    getValD j = fromMaybe (error $ "b1ToB2: Column not found: " <> show j <> " from vector of length " <> show (U.length dVec) <> " in matrix of dim " <> show (S.dimSM b1))
+              $ dVec U.!? j
+    dVec :: U.Vector Double
+    dVec = U.fromList
          . fmap (sum . fmap (\x -> if x > 0 then 1 else 0))
          . S.toRowsL -- faster than toColsL.
          . S.transposeSM
          $ b1
-    n = S.nrows b1
+    n = fromIntegral $ S.nrows b1
     m = S.ncols b1
 
 -- | Euclidean norm each row.
 b2ToB :: B2 -> B
 b2ToB (B2 b2) =
     B
-        . S.fromListSM (n, m)
-        . fmap (\(!i, !j, !x) -> (i, j, x / (S.lookupDenseSV i eVec)))
-        . S.toListSM
+        . S.imapSM (\ !i _ !x -> x / (getValE i))
         $ b2
   where
-    eVec :: S.SpVector Double
-    eVec = S.vr . fmap S.norm2 . S.toRowsL $ b2
-    n = S.nrows b2
-    m = S.ncols b2
+    getValE i = fromMaybe (error $ "b2ToB: Row not found: " <> show i <> " from vector of length " <> show (U.length eVec) <> " in matrix of dim " <> show (S.dimSM b2))
+              $ eVec U.!? i
+    eVec :: U.Vector Double
+    eVec = U.fromList . fmap S.norm2 . S.toRowsL $ b2
 
 -- | Find the Euclidean norm of a vector.
 norm2 :: S.SpVector Double -> Double
@@ -100,22 +96,16 @@ norm2 = sqrt . sum . fmap (** 2)
 -- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
 bToD (B b) = D
-           -- . S.diagonalSM
            . flip S.extractCol 0
-           $ (fmap abs b)
-       S.#~# ((fmap abs $ S.transposeSM b) S.#~# (S.fromColsL [S.onesSV n]))
+           $ b'
+       S.#~# (S.transposeSM b' S.#~# (S.fromColsL [S.onesSV n]))
   where
+    b' = fmap abs b
     n = S.nrows b
 
 -- | Get the matrix C as input for SVD.
 bdToC :: B -> D -> C
-bdToC (B b) (D d) = C
-                  . S.fromListSM (S.dimSM b)
-                  . fmap (\ (!i, !j, !x)
-                        -> (i, j, (S.lookupDenseSV i d') * x)
-                        )
-                  . S.toListSM
-                  $ b
+bdToC (B b) (D d) = C . S.imapSM (\ !i _ !x -> (S.lookupDenseSV i d') * x) $ b
   where
     d' = S.sparsifySV $ fmap (\x -> x ** (-1 / 2)) d
 
