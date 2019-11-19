@@ -12,6 +12,7 @@ module Math.Clustering.Spectral.Sparse
     , B2 (..)
     , AdjacencyMatrix (..)
     , LabelVector (..)
+    , secondLeft
     , spectral
     , spectralCluster
     , spectralClusterK
@@ -109,7 +110,7 @@ bdToC (B b) (D d) = C . S.imapSM (\ !i _ !x -> (S.lookupDenseSV i d') * x) $ b
   where
     d' = S.sparsifySV $ fmap (\x -> x ** (-1 / 2)) d
 
--- | Obtain the second left singular vector (or N earlier) and E on of a sparse
+-- | Obtain the second left singular vector (or from N) and E on of a sparse
 -- matrix.
 secondLeft :: Int -> Int -> S.SpMatrix Double -> [S.SpVector Double]
 secondLeft n e m =
@@ -175,8 +176,7 @@ kmeansVec k = consensusKmeans 100
             . S.toRowsL
             . S.fromColsL
             . fmap S.normalize2
-            . S.toColsL
-            . S.transpose
+            . S.toRowsL
             . S.fromColsL
 
 -- | Consensus kmeans.
