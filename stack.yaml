@@ -43,7 +43,8 @@ extra-deps:
 - clustering-0.4.0
 # - eigen-3.3.4.1
 - hmatrix-svdlibc-0.5.0.1
-- /home/gw/git_repos/sparse-linear-algebra
+- git: https://github.com/ocramz/sparse-linear-algebra.git
+  commit: dbad792f6c6a04e4de23806b676cb3e76d36a65b
 
 # Override default flag values for local packages and extra-deps
 flags: {}
