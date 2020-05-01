@@ -28,7 +28,7 @@ module Math.Clustering.Spectral.Sparse
 import Data.Bool (bool)
 import Data.Maybe (fromMaybe)
 import Data.Function (on)
-import Data.List (sortBy, foldl1', maximumBy, transpose)
+import Data.List (sortBy, foldl1', foldl', maximumBy, transpose)
 import Safe (headMay)
 import qualified AI.Clustering.KMeans as K
 import qualified Data.Map.Strict as Map
@@ -64,6 +64,7 @@ newtype B  = B { unB :: S.SpMatrix Double } deriving (Show)
 b1ToB2 :: B1 -> B2
 b1ToB2 (B1 b1) =
     B2
+        . S.sparsifySM
         . S.imapSM (\ _ !j !x -> (log (n / getValD j)) * x)
         $ b1
   where
@@ -71,7 +72,7 @@ b1ToB2 (B1 b1) =
               $ dVec U.!? j
     dVec :: U.Vector Double
     dVec = U.fromList
-         . fmap (sum . fmap (\x -> if x > 0 then 1 else 0))
+         . fmap (foldl' (+) 0 . fmap (\x -> if x > 0 then 1 else 0))
          . S.toRowsL -- faster than toColsL.
          . S.transposeSM
          $ b1
@@ -92,7 +93,7 @@ b2ToB (B2 b2) =
 
 -- | Find the Euclidean norm of a vector.
 norm2 :: S.SpVector Double -> Double
-norm2 = sqrt . sum . fmap (** 2)
+norm2 = sqrt . foldl' (+) 0 . fmap (** 2)
 
 -- | Get the signed diagonal transformed B matrix.
 bToD :: B -> D
@@ -227,7 +228,7 @@ spectralNorm n e mat = fmap S.sparsifySV $ secondLeft n e lNorm
     lNorm    = i S.^+^ (S.transpose invRootD S.#~# (mat S.#~# invRootD))
     invRootD = S.diagonalSM
              . S.vr
-             . fmap ((\x -> if x == 0 then x else x ** (- 1 / 2)) . sum)
+             . fmap ((\x -> if x == 0 then x else x ** (- 1 / 2)) . foldl' (+) 0)
              . S.toRowsL
              . fmap abs -- signed diagonal
              $ mat
