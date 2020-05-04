@@ -21,6 +21,7 @@ module Math.Clustering.Spectral.Sparse
     , spectralClusterKNorm
     , getB
     , b1ToB2
+    , b2ToB
     , getSimilarityFromB2
     ) where
 
